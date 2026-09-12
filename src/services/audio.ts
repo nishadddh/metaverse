@@ -26,6 +26,15 @@ class SpatialAudioService {
     }
   }
 
+  setProximityRadius(radius: number) {
+    this.proximityRadius = Math.max(80, Math.min(600, radius));
+    this.fullVolumeRadius = Math.round(this.proximityRadius * 0.3);
+  }
+
+  getProximityRadius(): number {
+    return this.proximityRadius;
+  }
+
   calculateProximity(myPos: UserPosition, allPositions: UserPosition[]): ProximityPeer[] {
     const results: ProximityPeer[] = [];
 

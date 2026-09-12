@@ -77,25 +77,11 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
 
         <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-2 text-xs text-amber-200">
           <p className="font-bold flex items-center gap-1.5 text-amber-300">
-            <AlertTriangle className="w-4 h-4 shrink-0" /> Why are you seeing this?
+            <AlertTriangle className="w-4 h-4 shrink-0" /> Access Restricted
           </p>
           <p className="text-slate-300 text-[11px] leading-relaxed">
-            Each virtual office requires users to be registered or explicitly granted access by the office owner. Your email address (<span className="font-mono font-bold text-amber-300">{currentUser.email}</span>) is not present in the allowed email whitelist for <span className="font-semibold text-white">{office.name}</span>.
+            Your email address (<span className="font-mono font-bold text-amber-300">{currentUser.email}</span>) does not have access permissions for <span className="font-semibold text-white">{office.name}</span>. Please contact your manager or office administrator to request access.
           </p>
-          {office.allowedEmails && office.allowedEmails.length > 0 && (
-            <div className="pt-1">
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
-                Authorized Emails for this Office:
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {office.allowedEmails.map(em => (
-                  <span key={em} className="rounded bg-slate-900 border border-slate-700 px-2 py-0.5 font-mono text-[10px] text-slate-300">
-                    {em}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -113,6 +99,10 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
             <ArrowLeft className="w-4 h-4" /> Back to My Dashboard
           </button>
         </div>
+
+        <p className="text-center text-[11px] text-slate-500 pt-1">
+          Login or access issue? Contact: <span className="font-mono text-slate-400">nishadnisha2001@gmail.com</span>
+        </p>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ import { OfficeBuilderView } from './components/builder/OfficeBuilderView';
 import { SuperAdminPortal } from './components/admin/SuperAdminPortal';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoginGateway } from './components/auth/LoginGateway';
-import { AccessDeniedView } from './components/auth/AccessDeniedView';
 import { ChatDrawer } from './components/chat/ChatDrawer';
 import { MeetingModal } from './components/meeting/MeetingModal';
 import { WhiteboardModal } from './components/whiteboard/WhiteboardModal';
@@ -35,19 +34,27 @@ export function App() {
       if (hash.startsWith('#office/')) {
         const officeId = hash.replace('#office/', '');
         const targetOffice = dbService.getOfficeById(officeId);
-        if (targetOffice) {
+        if (targetOffice && dbService.isUserAllowedInOffice(currentUser, targetOffice)) {
           setSelectedOffice(targetOffice);
           setActiveView('office');
+        } else {
+          setActiveView('dashboard');
         }
       } else if (hash.startsWith('#builder/')) {
         const officeId = hash.replace('#builder/', '');
         const targetOffice = dbService.getOfficeById(officeId);
-        if (targetOffice) {
+        if (targetOffice && dbService.isUserAllowedInOffice(currentUser, targetOffice)) {
           setSelectedOffice(targetOffice);
           setActiveView('builder');
+        } else {
+          setActiveView('dashboard');
         }
       } else if (hash === '#superadmin') {
-        setActiveView('superadmin');
+        if (currentUser?.isSuperAdmin) {
+          setActiveView('superadmin');
+        } else {
+          setActiveView('dashboard');
+        }
       } else {
         setActiveView('dashboard');
       }
@@ -161,11 +168,13 @@ export function App() {
               onJoinMeeting={(room) => setMeetingRoom(room)}
             />
           ) : (
-            <AccessDeniedView
-              office={selectedOffice}
+            <OrgDashboard
               currentUser={currentUser}
-              onSwitchAccount={() => setIsAuthOpen(true)}
-              onGoDashboard={navigateToDashboard}
+              offices={offices}
+              onSelectOffice={handleSelectOffice}
+              onOpenBuilder={handleOpenBuilder}
+              onOpenSuperAdmin={navigateToSuperAdmin}
+              onRefreshData={refreshData}
             />
           )
         )}
@@ -181,11 +190,13 @@ export function App() {
               onCancel={navigateToDashboard}
             />
           ) : (
-            <AccessDeniedView
-              office={selectedOffice}
+            <OrgDashboard
               currentUser={currentUser}
-              onSwitchAccount={() => setIsAuthOpen(true)}
-              onGoDashboard={navigateToDashboard}
+              offices={offices}
+              onSelectOffice={handleSelectOffice}
+              onOpenBuilder={handleOpenBuilder}
+              onOpenSuperAdmin={navigateToSuperAdmin}
+              onRefreshData={refreshData}
             />
           )
         )}

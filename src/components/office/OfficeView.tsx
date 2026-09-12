@@ -56,9 +56,18 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
   const [isCamOn, setIsCamOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [showRadiusCircle, setShowRadiusCircle] = useState(true);
+  const [proximityRadius, setProximityRadiusState] = useState(280);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [accessAlert, setAccessAlert] = useState<{ room: string; roles: string[] } | null>(null);
+
+  const handleProximityRadiusChange = (radius: number) => {
+    setProximityRadiusState(radius);
+    spatialAudio.setProximityRadius(radius);
+    if (engineRef.current) {
+      engineRef.current.proximityRadius = radius;
+    }
+  };
 
   const isBuilder = currentUser.role === 'Owner' || currentUser.role === 'Office Builder';
 
@@ -241,15 +250,41 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         />
       </div>
 
-      <div className="absolute top-24 left-4 z-20 w-64 rounded-2xl border border-slate-800/80 bg-slate-900/80 p-3 backdrop-blur-xl space-y-2 hidden md:block">
+      <div className="absolute top-24 left-4 z-20 w-72 rounded-2xl border border-slate-800/80 bg-slate-900/90 p-3.5 backdrop-blur-xl space-y-3 hidden md:block shadow-2xl">
         <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
           <span className="font-semibold text-slate-200 flex items-center gap-1.5">
             <Radio className="w-4 h-4 text-sky-400" /> Spatial Proximity Audio
           </span>
-          <span className="text-[10px] text-sky-400 font-mono">280px Radius</span>
+          <span className="text-[11px] text-sky-400 font-mono font-bold bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+            {proximityRadius}px
+          </span>
         </div>
 
-        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        {/* Dynamic Proximity Radius Slider Control */}
+        <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+          <div className="flex items-center justify-between text-[11px] text-slate-300 font-semibold">
+            <span className="flex items-center gap-1 text-slate-400">
+              Adjust Range:
+            </span>
+            <span className="text-sky-400 font-mono font-bold">{proximityRadius}px Radius</span>
+          </div>
+          <input
+            type="range"
+            min="100"
+            max="600"
+            step="10"
+            value={proximityRadius}
+            onChange={(e) => handleProximityRadiusChange(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
+            title="Slide to dynamically expand or shrink spatial audio hearing range"
+          />
+          <div className="flex justify-between text-[9px] text-slate-500 font-mono pt-0.5">
+            <span>100px (Close)</span>
+            <span>600px (Wide)</span>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
           {proximityPeers.length === 0 ? (
             <p className="text-[11px] text-slate-500 italic py-2 text-center">
               No teammates nearby. Walk closer to converse!

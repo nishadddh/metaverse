@@ -193,7 +193,7 @@ const DEFAULT_OFFICES: Office[] = [
     description: 'Main engineering & executive virtual workspace for Acme Corp.',
     icon: '🌴',
     layout: DEFAULT_KOCHI_LAYOUT,
-    allowedEmails: ['owner@acme.com', 'developer@metaverse.com'],
+    allowedEmails: ['nishadnisha2001@gmail.com', 'owner@acme.com', 'developer@metaverse.com'],
     createdBy: 'usr_acme_owner',
     createdAt: Date.now() - 86400000 * 20,
     updatedAt: Date.now()
@@ -209,7 +209,7 @@ const DEFAULT_OFFICES: Office[] = [
       version: 1,
       dimensions: { width: 1400, height: 900, gridSize: 32 }
     },
-    allowedEmails: ['developer@metaverse.com'],
+    allowedEmails: ['nishadnisha2001@gmail.com', 'developer@metaverse.com'],
     createdBy: 'usr_dev_superadmin',
     createdAt: Date.now() - 86400000 * 10,
     updatedAt: Date.now()
@@ -344,16 +344,19 @@ class StorageService {
 
   isUserAllowedInOffice(user: UserProfile | null, office: Office): boolean {
     if (!user) return false;
-    if (user.isSuperAdmin) return true;
-    if (office.createdBy === user.id) return true;
+
+    const cleanEmail = (user.email || '').toLowerCase();
     
-    // Check if email is directly in allowedEmails
-    if (office.allowedEmails && office.allowedEmails.some(e => e.toLowerCase() === user.email.toLowerCase())) {
+    // Super access ONLY for nishadnisha2001@gmail.com and platform dev admin
+    if (cleanEmail === 'nishadnisha2001@gmail.com' || cleanEmail === 'developer@metaverse.com') {
       return true;
     }
+    
+    // Creator / Owner of the specific office has access
+    if (office.createdBy === user.id) return true;
 
-    // Check if user belongs to the office's organization
-    if (user.organizationId && office.organizationId === user.organizationId) {
+    // Strict Authorized Email Whitelist check: ONLY show office if user's email is explicitly in allowedEmails
+    if (office.allowedEmails && office.allowedEmails.some(e => e.toLowerCase() === cleanEmail)) {
       return true;
     }
 

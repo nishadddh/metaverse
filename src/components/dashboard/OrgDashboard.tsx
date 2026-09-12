@@ -266,33 +266,33 @@ export const OrgDashboard: React.FC<OrgDashboardProps> = ({
                   )}
                 </div>
 
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400 font-semibold flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5 text-blue-400" /> Authorized Email Access List
-                    </span>
-                    {isOwner && (
+                {isOwner && (
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-semibold flex items-center gap-1">
+                        <Mail className="w-3.5 h-3.5 text-blue-400" /> Authorized Email Access Whitelist
+                      </span>
                       <button
                         onClick={() => setSelectedOfficeForPermission(off)}
                         className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1"
                       >
-                        <UserPlus className="w-3.5 h-3.5" /> Manage Emails
+                        <UserPlus className="w-3.5 h-3.5" /> Grant Email Access
                       </button>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {off.allowedEmails && off.allowedEmails.length > 0 ? (
-                      off.allowedEmails.map(em => (
-                        <span key={em} className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 font-mono">
-                          {em}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-slate-500 italic">No emails explicitly granted yet.</span>
-                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {off.allowedEmails && off.allowedEmails.length > 0 ? (
+                        off.allowedEmails.map(em => (
+                          <span key={em} className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 font-mono">
+                            {em}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-500 italic">No emails explicitly granted yet.</span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex items-center gap-3 pt-2">
                   <button
@@ -321,87 +321,89 @@ export const OrgDashboard: React.FC<OrgDashboardProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-400" /> Registered Accounts
-            </h2>
-            <span className="text-xs text-slate-400">
-              {isOwner ? '⚡ You can update member roles' : 'Registered Users'}
-            </span>
-          </div>
+      {isOwner && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-400" /> Registered Accounts Management
+              </h2>
+              <span className="text-xs text-slate-400">
+                ⚡ Super Admin / Owner Control
+              </span>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 text-slate-400 font-medium">
-                <tr>
-                  <th className="pb-3">MEMBER</th>
-                  <th className="pb-3">EMAIL ADDRESS</th>
-                  <th className="pb-3">ROLE</th>
-                  <th className="pb-3 text-right">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {usersList.map(m => (
-                  <tr key={m.id} className="hover:bg-slate-800/40 transition">
-                    <td className="py-3 flex items-center gap-2.5">
-                      <span className="text-lg">{m.avatar}</span>
-                      <span className="font-semibold text-slate-100">{m.fullName}</span>
-                    </td>
-                    <td className="py-3 text-slate-300 font-mono">{m.email}</td>
-                    <td className="py-3">
-                      {isOwner && m.id !== currentUser.id ? (
-                        <select
-                          value={m.role}
-                          onChange={e => handleRoleChange(m.id, e.target.value as UserRoleName)}
-                          className="rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
-                        >
-                          <option value="Owner">Owner</option>
-                          <option value="Office Builder">Office Builder</option>
-                          <option value="Manager">Manager</option>
-                          <option value="Employee">Employee</option>
-                          <option value="Guest">Guest</option>
-                        </select>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${
-                          m.role === 'Owner' ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' :
-                          m.role === 'Office Builder' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' :
-                          m.role === 'Manager' ? 'border-purple-500/40 bg-purple-500/10 text-purple-300' :
-                          'border-slate-700 bg-slate-800 text-slate-300'
-                        }`}>
-                          {m.role}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="text-emerald-400 font-mono text-[10px]">ACTIVE</span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-800 text-slate-400 font-medium">
+                  <tr>
+                    <th className="pb-3">MEMBER</th>
+                    <th className="pb-3">EMAIL ADDRESS</th>
+                    <th className="pb-3">ROLE</th>
+                    <th className="pb-3 text-right">STATUS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {usersList.map(m => (
+                    <tr key={m.id} className="hover:bg-slate-800/40 transition">
+                      <td className="py-3 flex items-center gap-2.5">
+                        <span className="text-lg">{m.avatar}</span>
+                        <span className="font-semibold text-slate-100">{m.fullName}</span>
+                      </td>
+                      <td className="py-3 text-slate-300 font-mono">{m.email}</td>
+                      <td className="py-3">
+                        {isOwner && m.id !== currentUser.id ? (
+                          <select
+                            value={m.role}
+                            onChange={e => handleRoleChange(m.id, e.target.value as UserRoleName)}
+                            className="rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="Owner">Owner</option>
+                            <option value="Office Builder">Office Builder</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Employee">Employee</option>
+                            <option value="Guest">Guest</option>
+                          </select>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${
+                            m.role === 'Owner' ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' :
+                            m.role === 'Office Builder' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' :
+                            m.role === 'Manager' ? 'border-purple-500/40 bg-purple-500/10 text-purple-300' :
+                            'border-slate-700 bg-slate-800 text-slate-300'
+                          }`}>
+                            {m.role}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="text-emerald-400 font-mono text-[10px]">ACTIVE</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <History className="w-5 h-5 text-amber-400" /> Audit Log Stream
-          </h2>
-          <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-            {auditLogs.map(log => (
-              <div key={log.id} className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-slate-400">
-                  <span className="font-semibold text-blue-400">{log.actorName}</span>
-                  <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-white flex items-center gap-2">
+              <History className="w-5 h-5 text-amber-400" /> Security Audit Stream
+            </h2>
+            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+              {auditLogs.map(log => (
+                <div key={log.id} className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-xs space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="font-semibold text-blue-400">{log.actorName}</span>
+                    <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <p className="text-slate-200 font-medium">{log.action}</p>
+                  <p className="text-[11px] text-slate-400">{log.target}</p>
                 </div>
-                <p className="text-slate-200 font-medium">{log.action}</p>
-                <p className="text-[11px] text-slate-400">{log.target}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {selectedOfficeForPermission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">

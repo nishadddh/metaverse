@@ -56,6 +56,7 @@ export class CanvasEngine {
   private loadedImages: Map<string, HTMLImageElement> = new Map();
 
   public showProximityCircle: boolean = true;
+  public proximityRadius: number = 280;
   public showGrid: boolean = true;
 
   private animFrameId: number | null = null;
@@ -723,7 +724,7 @@ export class CanvasEngine {
     // Proximity Spatial Circle
     if (this.showProximityCircle) {
       ctx.beginPath();
-      ctx.arc(this.playerX, this.playerY, 280, 0, Math.PI * 2);
+      ctx.arc(this.playerX, this.playerY, this.proximityRadius, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(56, 189, 248, 0.03)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
