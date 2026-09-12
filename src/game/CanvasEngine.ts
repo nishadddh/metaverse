@@ -175,12 +175,50 @@ export class CanvasEngine {
     this.targetChair = null;
   }
 
+  public setVirtualDirection(dir: 'up' | 'down' | 'left' | 'right' | null) {
+    if (this.isSitting && dir) {
+      this.standUp();
+    }
+    this.keys['arrowup'] = dir === 'up';
+    this.keys['w'] = dir === 'up';
+    this.keys['arrowdown'] = dir === 'down';
+    this.keys['s'] = dir === 'down';
+    this.keys['arrowleft'] = dir === 'left';
+    this.keys['a'] = dir === 'left';
+    this.keys['arrowright'] = dir === 'right';
+    this.keys['d'] = dir === 'right';
+  }
+
   private initEventListeners = () => {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
     this.canvas.addEventListener('click', this.handleCanvasClick);
     this.canvas.addEventListener('dblclick', this.handleCanvasDblClick);
+    this.canvas.addEventListener('touchstart', this.handleTouchStart, { passive: true });
     this.canvas.addEventListener('wheel', this.handleWheel, { passive: false });
+  };
+
+  private handleTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+
+      const screenX = (touch.clientX - rect.left) * scaleX;
+      const screenY = (touch.clientY - rect.top) * scaleY;
+
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+
+      const clickX = (screenX - w / 2) / this.zoomLevel + this.playerX;
+      const clickY = (screenY - h / 2) / this.zoomLevel + this.playerY;
+
+      if (this.isSitting) this.standUp();
+      this.targetX = clickX;
+      this.targetY = clickY;
+      this.targetPulseRadius = 24;
+    }
   };
 
   private handleWheel = (e: WheelEvent) => {

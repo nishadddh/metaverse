@@ -6,7 +6,15 @@ import type {
   UserRoleName, 
   OfficeLayout 
 } from '../types/office';
-import { syncUserToFirebase, syncOfficeAccessToFirebase } from './firebase';
+import { 
+  syncUserToFirebase, 
+  syncOfficeAccessToFirebase, 
+  syncOfficeStructureToFirebase, 
+  syncOfficeToFirebase,
+  deleteOfficeFromFirebase,
+  subscribeFirebaseOffices,
+  subscribeFirebaseUsers
+} from './firebase';
 
 // Helper function to extract a clean First Name & Last Name from any email address
 export const extractNameFromEmail = (email: string): string => {
@@ -231,6 +239,50 @@ class StorageService {
     if (!localStorage.getItem(KEYS.OFFICES)) {
       localStorage.setItem(KEYS.OFFICES, JSON.stringify(DEFAULT_OFFICES));
     }
+
+    // Sync default offices to Firebase RTDB master database
+    DEFAULT_OFFICES.forEach(off => {
+      syncOfficeToFirebase(off);
+    });
+
+    // Auto-subscribe to Firebase Realtime Database for real-time cross-browser office sync
+    subscribeFirebaseOffices((remoteOffices) => {
+      if (remoteOffices && remoteOffices.length > 0) {
+        this.updateOfficesFromFirebase(remoteOffices);
+      }
+    });
+
+    subscribeFirebaseUsers((remoteUsers) => {
+      if (remoteUsers && remoteUsers.length > 0) {
+        this.updateUsersFromFirebase(remoteUsers);
+      }
+    });
+  }
+
+  updateOfficesFromFirebase(remoteOffices: Office[]) {
+    if (!remoteOffices) return;
+    const currentOffices = this.getOffices();
+    const mergedMap = new Map<string, Office>();
+    currentOffices.forEach(o => mergedMap.set(o.id, o));
+    remoteOffices.forEach(o => {
+      if (o && o.id) {
+        mergedMap.set(o.id, o);
+      }
+    });
+    localStorage.setItem(KEYS.OFFICES, JSON.stringify(Array.from(mergedMap.values())));
+  }
+
+  updateUsersFromFirebase(remoteUsers: UserProfile[]) {
+    if (!remoteUsers) return;
+    const currentUsers = this.getUsers();
+    const mergedMap = new Map<string, UserProfile>();
+    currentUsers.forEach(u => mergedMap.set(u.email.toLowerCase(), u));
+    remoteUsers.forEach(u => {
+      if (u && u.email) {
+        mergedMap.set(u.email.toLowerCase(), u);
+      }
+    });
+    localStorage.setItem(KEYS.USERS, JSON.stringify(Array.from(mergedMap.values())));
   }
 
   getUsers(): UserProfile[] {
@@ -382,6 +434,7 @@ class StorageService {
       offices.push(office);
     }
     localStorage.setItem(KEYS.OFFICES, JSON.stringify(offices));
+    syncOfficeStructureToFirebase(office);
   }
 
   saveOfficeLayout(officeId: string, layout: OfficeLayout) {
@@ -395,6 +448,7 @@ class StorageService {
       };
       office.updatedAt = Date.now();
       localStorage.setItem(KEYS.OFFICES, JSON.stringify(offices));
+      syncOfficeStructureToFirebase(office);
     }
   }
 
@@ -408,6 +462,7 @@ class StorageService {
         office.allowedEmails.push(cleanEmail);
         localStorage.setItem(KEYS.OFFICES, JSON.stringify(offices));
         syncOfficeAccessToFirebase(officeId, office.allowedEmails);
+        syncOfficeToFirebase(office);
       }
     }
   }
@@ -419,12 +474,14 @@ class StorageService {
       office.allowedEmails = office.allowedEmails.filter(e => e.toLowerCase() !== email.trim().toLowerCase());
       localStorage.setItem(KEYS.OFFICES, JSON.stringify(offices));
       syncOfficeAccessToFirebase(officeId, office.allowedEmails);
+      syncOfficeToFirebase(office);
     }
   }
 
   deleteOffice(id: string) {
     const offices = this.getOffices().filter(o => o.id !== id);
     localStorage.setItem(KEYS.OFFICES, JSON.stringify(offices));
+    deleteOfficeFromFirebase(id);
   }
 
   getAuditLogs(): AuditLog[] {

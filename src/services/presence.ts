@@ -1,4 +1,9 @@
 import type { UserPosition, PresenceStatus } from '../types/office';
+import { 
+  syncFirebasePlayerPosition, 
+  subscribeFirebasePresence, 
+  removeFirebasePresence 
+} from './firebase';
 
 type PositionCallback = (positions: UserPosition[]) => void;
 type ChatCallback = (msg: any) => void;
@@ -13,6 +18,7 @@ class RealtimePresenceService {
 
   private myPosition: UserPosition | null = null;
   private syncInterval: any = null;
+  private unsubFirebasePresence: (() => void) | null = null;
 
   constructor() {
     if (typeof BroadcastChannel !== 'undefined') {
@@ -40,22 +46,42 @@ class RealtimePresenceService {
       updatedAt: Date.now()
     };
 
-    // Reset positions map for new office session - ZERO DUMMY/BOT USERS!
+    // Reset positions map for new office session
     this.positions.clear();
     this.positions.set(userId, { ...this.myPosition });
 
-    if (this.syncInterval) clearInterval(this.syncInterval);
-    this.syncInterval = setInterval(() => this.broadcastMyPosition(), 50);
+    // 1. Sync & Subscribe to Firebase Realtime DB Presence across ALL devices & computers
+    if (this.unsubFirebasePresence) this.unsubFirebasePresence();
+    this.unsubFirebasePresence = subscribeFirebasePresence(officeId, (remotePositions) => {
+      if (remotePositions && Array.isArray(remotePositions)) {
+        remotePositions.forEach(p => {
+          if (p && p.userId) {
+            this.positions.set(p.userId, p);
+          }
+        });
+        this.notifySubscribers();
+      }
+    });
 
-    // Announce join to other tabs/clients
+    syncFirebasePlayerPosition(officeId, userId, this.myPosition);
+
+    if (this.syncInterval) clearInterval(this.syncInterval);
+    this.syncInterval = setInterval(() => this.broadcastMyPosition(), 80);
+
+    // Announce join via local bus & Firebase
     this.broadcast({ type: 'JOIN', position: this.myPosition });
     this.broadcastMyPosition();
     this.notifySubscribers();
   }
 
   leaveOffice() {
-    if (this.myPosition) {
+    if (this.myPosition && this.officeId) {
       this.broadcast({ type: 'LEAVE', userId: this.myUserId });
+      removeFirebasePresence(this.officeId, this.myUserId);
+    }
+    if (this.unsubFirebasePresence) {
+      this.unsubFirebasePresence();
+      this.unsubFirebasePresence = null;
     }
     if (this.syncInterval) clearInterval(this.syncInterval);
     this.positions.clear();
@@ -110,11 +136,13 @@ class RealtimePresenceService {
   }
 
   private broadcastMyPosition() {
-    if (!this.myPosition) return;
+    if (!this.myPosition || !this.officeId) return;
     this.broadcast({
       type: 'POS_UPDATE',
       position: this.myPosition
     });
+    // Multi-device Firebase RTDB sync
+    syncFirebasePlayerPosition(this.officeId, this.myUserId, this.myPosition);
   }
 
   private broadcast(data: any) {
@@ -128,7 +156,6 @@ class RealtimePresenceService {
 
     if (msg.type === 'JOIN' && msg.position) {
       this.positions.set(msg.position.userId, msg.position);
-      // Reply back with my position so the new player sees me immediately
       this.broadcastMyPosition();
       this.notifySubscribers();
     } else if (msg.type === 'POS_UPDATE' && msg.position) {

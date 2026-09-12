@@ -6,8 +6,8 @@ import {
   signOut as firebaseSignOut 
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getDatabase, ref, onValue, set } from 'firebase/database';
-import type { ChatMessage, UserProfile, PublicChannel } from '../types/office';
+import { getDatabase, ref, onValue, set, remove, onDisconnect } from 'firebase/database';
+import type { ChatMessage, UserProfile, PublicChannel, Office } from '../types/office';
 
 // Helper function to extract a clean First Name & Last Name from any email address
 export const extractNameFromEmail = (email: string): string => {
@@ -121,14 +121,124 @@ export const syncUserToFirebase = async (user: UserProfile) => {
 };
 
 /**
+ * Sync entire Office Master Record & Allowed Email Whitelist to Firebase Realtime DB
+ */
+export const syncOfficeToFirebase = async (office: Office) => {
+  try {
+    const masterOfficeRef = ref(realtimeDb, `all_offices/${office.id}`);
+    const officeStructRef = ref(realtimeDb, `offices/${office.id}/structure`);
+    const allowedEmailsRef = ref(realtimeDb, `offices/${office.id}/allowedEmails`);
+
+    await set(masterOfficeRef, office);
+    await set(officeStructRef, office);
+    await set(allowedEmailsRef, office.allowedEmails || []);
+  } catch (err) {
+    console.warn('Firebase RTDB Office Master Sync:', err);
+  }
+};
+
+/**
+ * Subscribe to all offices and allowed email whitelists from Firebase Realtime DB across all browsers
+ */
+export const subscribeFirebaseOffices = (callback: (offices: Office[]) => void) => {
+  try {
+    const officesRef = ref(realtimeDb, `all_offices`);
+    return onValue(officesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.values(data) as Office[];
+        callback(list);
+      } else {
+        callback([]);
+      }
+    });
+  } catch (err) {
+    console.warn('Firebase RTDB Offices Subscribe:', err);
+    return () => {};
+  }
+};
+
+/**
+ * Subscribe to all registered users from Firebase Realtime DB across all browsers
+ */
+export const subscribeFirebaseUsers = (callback: (users: UserProfile[]) => void) => {
+  try {
+    const usersRef = ref(realtimeDb, `users`);
+    return onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.values(data) as UserProfile[];
+        callback(list);
+      } else {
+        callback([]);
+      }
+    });
+  } catch (err) {
+    console.warn('Firebase RTDB Users Subscribe:', err);
+    return () => {};
+  }
+};
+
+/**
  * Sync office email access whitelist to Firebase Realtime DB
  */
 export const syncOfficeAccessToFirebase = async (officeId: string, allowedEmails: string[]) => {
   try {
     const officeRef = ref(realtimeDb, `offices/${officeId}/allowedEmails`);
+    const masterAllowedEmailsRef = ref(realtimeDb, `all_offices/${officeId}/allowedEmails`);
     await set(officeRef, allowedEmails);
+    await set(masterAllowedEmailsRef, allowedEmails);
   } catch (err) {
     console.warn('Firebase RTDB Office Access Sync:', err);
+  }
+};
+
+/**
+ * Delete office from Firebase Realtime DB
+ */
+export const deleteOfficeFromFirebase = async (officeId: string) => {
+  try {
+    const masterOfficeRef = ref(realtimeDb, `all_offices/${officeId}`);
+    const officeRef = ref(realtimeDb, `offices/${officeId}`);
+    await remove(masterOfficeRef);
+    await remove(officeRef);
+  } catch (err) {
+    console.warn('Firebase RTDB Delete Office:', err);
+  }
+};
+
+/**
+ * Sync entire Office Structure & Layout to Firebase Realtime DB
+ */
+export const syncOfficeStructureToFirebase = async (office: Office) => {
+  try {
+    const officeRef = ref(realtimeDb, `offices/${office.id}/structure`);
+    const masterOfficeRef = ref(realtimeDb, `all_offices/${office.id}`);
+    await set(officeRef, office);
+    await set(masterOfficeRef, office);
+  } catch (err) {
+    console.warn('Firebase RTDB Office Structure Sync:', err);
+  }
+};
+
+/**
+ * Subscribe to real-time Office Structure & Layout updates from Firebase Realtime DB
+ */
+export const subscribeFirebaseOfficeStructure = (
+  officeId: string,
+  callback: (office: Office) => void
+) => {
+  try {
+    const officeRef = ref(realtimeDb, `offices/${officeId}/structure`);
+    return onValue(officeRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        callback(data as Office);
+      }
+    });
+  } catch (err) {
+    console.warn('Firebase RTDB Office Structure Subscribe:', err);
+    return () => {};
   }
 };
 
@@ -260,8 +370,45 @@ export const syncFirebasePlayerPosition = async (officeId: string, userId: strin
       ...position,
       updatedAt: Date.now()
     });
+    onDisconnect(playerRef).remove();
   } catch (err) {
     console.warn('Firebase RTDB Position Sync:', err);
+  }
+};
+
+/**
+ * Subscribe to real-time player positions for multi-user presence in an office across all devices
+ */
+export const subscribeFirebasePresence = (
+  officeId: string,
+  callback: (positions: any[]) => void
+) => {
+  try {
+    const presenceRef = ref(realtimeDb, `offices/${officeId}/presence`);
+    return onValue(presenceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.values(data);
+        callback(list);
+      } else {
+        callback([]);
+      }
+    });
+  } catch (err) {
+    console.warn('Firebase RTDB Presence Subscribe:', err);
+    return () => {};
+  }
+};
+
+/**
+ * Remove player presence when leaving office
+ */
+export const removeFirebasePresence = async (officeId: string, userId: string) => {
+  try {
+    const playerRef = ref(realtimeDb, `offices/${officeId}/presence/${userId}`);
+    await remove(playerRef);
+  } catch (err) {
+    console.warn('Firebase RTDB Remove Presence:', err);
   }
 };
 

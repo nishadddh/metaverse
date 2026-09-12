@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Room, UserProfile } from '../../types/office';
+import { mediaService } from '../../services/media';
 import { 
   X, 
   Mic, 
@@ -29,6 +30,44 @@ export const MeetingModal: React.FC<MeetingModalProps> = ({
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCamOn, setIsCamOn] = useState(true);
   const [isScreenShare, setIsScreenShare] = useState(false);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(mediaService.getVideoStream());
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && isCamOn) {
+      mediaService.requestCamera().then(stream => {
+        setVideoStream(stream);
+      });
+    }
+  }, [isOpen, isCamOn]);
+
+  useEffect(() => {
+    if (localVideoRef.current && videoStream && isCamOn) {
+      localVideoRef.current.srcObject = videoStream;
+    }
+  }, [videoStream, isCamOn]);
+
+  const handleToggleCam = async () => {
+    const next = !isCamOn;
+    if (next) {
+      const stream = await mediaService.requestCamera();
+      setVideoStream(stream);
+    } else {
+      mediaService.stopVideo();
+      setVideoStream(null);
+    }
+    setIsCamOn(next);
+  };
+
+  const handleToggleMic = async () => {
+    const next = !isMicOn;
+    if (next) {
+      await mediaService.requestMicrophone();
+    } else {
+      mediaService.stopAudio();
+    }
+    setIsMicOn(next);
+  };
 
   if (!isOpen) return null;
 
@@ -68,9 +107,17 @@ export const MeetingModal: React.FC<MeetingModalProps> = ({
                 }`}
               >
                 {isLocal && isCamOn ? (
-                  <div className="absolute inset-0 bg-slate-800 flex items-center justify-center text-slate-400">
-                    <span className="text-6xl">{user.avatar}</span>
-                    <span className="absolute top-3 right-3 text-[10px] bg-blue-600/80 px-2 py-0.5 rounded-md font-semibold text-white">Your Camera Feed</span>
+                  <div className="absolute inset-0 bg-slate-950 flex items-center justify-center">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                    <span className="absolute top-3 right-3 text-[10px] bg-blue-600/90 backdrop-blur-md px-2.5 py-1 rounded-lg font-bold text-white shadow-md border border-blue-400/30 flex items-center gap-1">
+                      <Video className="w-3 h-3 text-white" /> Your Live Camera Feed
+                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-3">
@@ -90,7 +137,7 @@ export const MeetingModal: React.FC<MeetingModalProps> = ({
                   <span className="truncate">{user.fullName} {isLocal ? '(You)' : ''}</span>
                   <div className="flex items-center gap-2">
                     {isSpeaking && <span className="text-[10px] text-emerald-400 font-bold uppercase">Speaking</span>}
-                    <Mic className="w-3.5 h-3.5 text-emerald-400" />
+                    {isMicOn ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-red-400" />}
                   </div>
                 </div>
               </div>
@@ -105,7 +152,7 @@ export const MeetingModal: React.FC<MeetingModalProps> = ({
 
           <div className="flex items-center gap-3 mx-auto sm:mx-0">
             <button
-              onClick={() => setIsMicOn(!isMicOn)}
+              onClick={handleToggleMic}
               className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
                 isMicOn ? 'bg-blue-600 text-white' : 'bg-red-600/20 text-red-400 border border-red-500/40'
               }`}
@@ -114,7 +161,7 @@ export const MeetingModal: React.FC<MeetingModalProps> = ({
             </button>
 
             <button
-              onClick={() => setIsCamOn(!isCamOn)}
+              onClick={handleToggleCam}
               className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
                 isCamOn ? 'bg-blue-600 text-white' : 'bg-red-600/20 text-red-400 border border-red-500/40'
               }`}

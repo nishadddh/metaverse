@@ -5,6 +5,9 @@ import { realtimeService } from '../../services/presence';
 import { spatialAudio } from '../../services/audio';
 import type { ProximityPeer } from '../../services/audio';
 import { mediaService } from '../../services/media';
+import { subscribeFirebaseOfficeStructure } from '../../services/firebase';
+import { SpatialVideoModal } from './SpatialVideoModal';
+import { MobileJoystick } from './MobileJoystick';
 import { 
   Mic, 
   MicOff, 
@@ -55,6 +58,11 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
   const [isMicOn, setIsMicOn] = useState(false);
   const [isCamOn, setIsCamOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+
   const [showRadiusCircle, setShowRadiusCircle] = useState(true);
   const [proximityRadius, setProximityRadiusState] = useState(280);
 
@@ -116,7 +124,14 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
       }
     });
 
+    const unsubStructure = subscribeFirebaseOfficeStructure(office.id, (remoteOffice) => {
+      if (remoteOffice && remoteOffice.layout) {
+        engine.updateLayout(remoteOffice.layout);
+      }
+    });
+
     return () => {
+      unsubStructure();
       unsubPositions();
       realtimeService.leaveOffice();
       engine.destroy();
@@ -144,6 +159,10 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     const nextState = !isMicOn;
     if (nextState) {
       await mediaService.requestMicrophone();
+      showToast('🎤 Microphone Unmuted & Audio Streaming Active');
+    } else {
+      mediaService.stopAudio();
+      showToast('🔇 Microphone Muted');
     }
     setIsMicOn(nextState);
     realtimeService.updateMediaState(nextState, isCamOn, isScreenSharing);
@@ -152,7 +171,17 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
   const toggleCam = async () => {
     const nextState = !isCamOn;
     if (nextState) {
-      await mediaService.requestCamera();
+      const stream = await mediaService.requestCamera();
+      setVideoStream(stream);
+      setIsVideoModalOpen(true);
+      showToast('📹 Camera Feed Enabled & Spatial Video Screen Opened!');
+    } else {
+      mediaService.stopVideo();
+      setVideoStream(null);
+      if (!isScreenSharing) {
+        setIsVideoModalOpen(false);
+      }
+      showToast('📷 Camera Disabled');
     }
     setIsCamOn(nextState);
     realtimeService.updateMediaState(isMicOn, nextState, isScreenSharing);
@@ -161,7 +190,17 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
   const toggleScreen = async () => {
     const nextState = !isScreenSharing;
     if (nextState) {
-      await mediaService.requestScreenShare();
+      const stream = await mediaService.requestScreenShare();
+      setScreenStream(stream);
+      setIsVideoModalOpen(true);
+      showToast('🖥️ Screen Share Started & Video Screen Opened!');
+    } else {
+      mediaService.stopScreen();
+      setScreenStream(null);
+      if (!isCamOn) {
+        setIsVideoModalOpen(false);
+      }
+      showToast('🖥️ Screen Share Stopped');
     }
     setIsScreenSharing(nextState);
     realtimeService.updateMediaState(isMicOn, isCamOn, nextState);
@@ -309,10 +348,10 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         </div>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-900/90 p-2.5 backdrop-blur-2xl shadow-2xl">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 max-w-[95vw] overflow-x-auto scrollbar-none flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-slate-800/80 bg-slate-900/95 p-2 sm:p-2.5 backdrop-blur-2xl shadow-2xl">
         <button
           onClick={toggleMic}
-          className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
             isMicOn 
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
               : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
@@ -324,7 +363,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
 
         <button
           onClick={toggleCam}
-          className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
             isCamOn 
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
               : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
@@ -336,7 +375,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
 
         <button
           onClick={toggleScreen}
-          className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
             isScreenSharing 
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' 
               : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
@@ -346,11 +385,23 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
           <Monitor className="w-5 h-5" />
         </button>
 
-        <div className="h-6 w-[1px] bg-slate-800 mx-1" />
+        <div className="h-6 w-[1px] bg-slate-800 mx-0.5 shrink-0" />
+
+        <button
+          onClick={() => setIsVideoModalOpen(!isVideoModalOpen)}
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
+            isVideoModalOpen ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+          }`}
+          title="Toggle Proximity Camera & Video Feed Screen"
+        >
+          <Tv className="w-5 h-5" />
+        </button>
+
+        <div className="h-6 w-[1px] bg-slate-800 mx-0.5 shrink-0" />
 
         <button
           onClick={onOpenChat}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition relative"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition relative"
           title="Open Chat"
         >
           <MessageSquare className="w-5 h-5" />
@@ -359,7 +410,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
 
         <button
           onClick={onOpenWhiteboard}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
           title="Open Collaborative Whiteboard"
         >
           <Sparkles className="w-5 h-5 text-amber-400" />
@@ -367,7 +418,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
 
         <button
           onClick={toggleProximityCircle}
-          className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
             showRadiusCircle ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-slate-800 text-slate-400'
           }`}
           title="Toggle Proximity Audio Radius Overlay"
@@ -375,27 +426,27 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
           <Radio className="w-5 h-5" />
         </button>
 
-        <div className="h-6 w-[1px] bg-slate-800 mx-1" />
+        <div className="h-6 w-[1px] bg-slate-800 mx-0.5 shrink-0" />
 
         <button
           onClick={() => engineRef.current?.zoomIn()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
-          title="Zoom In (2-finger scroll up)"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+          title="Zoom In"
         >
           <ZoomIn className="w-5 h-5" />
         </button>
 
         <button
           onClick={() => engineRef.current?.zoomOut()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
-          title="Zoom Out (2-finger scroll down)"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+          title="Zoom Out"
         >
           <ZoomOut className="w-5 h-5" />
         </button>
 
         <button
           onClick={() => engineRef.current?.resetZoom()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition text-xs font-semibold"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition text-xs font-semibold"
           title="Reset Zoom to 100%"
         >
           <Maximize2 className="w-4 h-4" />
@@ -417,6 +468,29 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* On-screen Mobile Touch D-Pad Joystick Overlay */}
+      <MobileJoystick
+        onDirectionChange={(dir) => engineRef.current?.setVirtualDirection(dir)}
+      />
+
+      {/* Spatial Camera & Media Screen Overlay */}
+      <SpatialVideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        currentUser={currentUser}
+        allUsers={allUsers}
+        proximityPeers={proximityPeers}
+        positions={positions}
+        isMicOn={isMicOn}
+        isCamOn={isCamOn}
+        isScreenSharing={isScreenSharing}
+        videoStream={videoStream}
+        screenStream={screenStream}
+        onToggleMic={toggleMic}
+        onToggleCam={toggleCam}
+        onToggleScreen={toggleScreen}
+      />
     </div>
   );
 };

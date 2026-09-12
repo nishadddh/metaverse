@@ -12,7 +12,7 @@ import { ChatDrawer } from './components/chat/ChatDrawer';
 import { MeetingModal } from './components/meeting/MeetingModal';
 import { WhiteboardModal } from './components/whiteboard/WhiteboardModal';
 
-import { logoutFromFirebase } from './services/firebase';
+import { logoutFromFirebase, subscribeFirebaseOffices } from './services/firebase';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(dbService.getCurrentUser());
@@ -64,6 +64,27 @@ export function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Real-time Firebase database listener: Syncs office creation, layout edits, & granted email permissions live across all browsers
+  useEffect(() => {
+    const unsubscribeOffices = subscribeFirebaseOffices((remoteOffices) => {
+      if (remoteOffices && remoteOffices.length > 0) {
+        dbService.updateOfficesFromFirebase(remoteOffices);
+        const userOffices = dbService.getOfficesForUser(currentUser);
+        setOffices(userOffices);
+        if (selectedOffice) {
+          const refreshedSelected = remoteOffices.find(o => o.id === selectedOffice.id);
+          if (refreshedSelected) {
+            setSelectedOffice(refreshedSelected);
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeOffices();
+    };
+  }, [currentUser, selectedOffice?.id]);
 
   const refreshData = () => {
     const updatedUser = dbService.getCurrentUser();

@@ -18,37 +18,37 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout
 }) => {
   return (
-    <header className="h-16 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl px-6 flex items-center justify-between font-sans text-slate-100 sticky top-0 z-40">
-      <div className="flex items-center gap-3 cursor-pointer" onClick={onNavigateDashboard}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-lg shadow-lg shadow-blue-500/20">
+    <header className="h-16 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl px-3 sm:px-6 flex items-center justify-between font-sans text-slate-100 sticky top-0 z-40">
+      <div className="flex items-center gap-2.5 cursor-pointer" onClick={onNavigateDashboard}>
+        <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-base sm:text-lg shadow-lg shadow-blue-500/20 shrink-0">
           V
         </div>
-        <div>
-          <h1 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-            Antigravity Virtual Office <span className="text-[10px] rounded-md bg-blue-500/20 px-2 py-0.5 text-blue-400 font-bold uppercase">SaaS Enterprise</span>
+        <div className="truncate">
+          <h1 className="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 truncate">
+            Antigravity Office <span className="hidden sm:inline-block text-[10px] rounded-md bg-blue-500/20 px-2 py-0.5 text-blue-400 font-bold uppercase">SaaS Enterprise</span>
           </h1>
-          <p className="text-[10px] text-slate-400">Spatial Workspace • Proximity Communication</p>
+          <p className="text-[9px] sm:text-[10px] text-slate-400 hidden sm:block">Spatial Workspace • Proximity Communication</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {activeView !== 'dashboard' && (
           <button
             onClick={onNavigateDashboard}
             className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition"
           >
-            <Building className="w-4 h-4 text-blue-400" /> Dashboard
+            <Building className="w-4 h-4 text-blue-400" /> <span className="hidden sm:inline">Dashboard</span>
           </button>
         )}
 
-        <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
+        <div className="flex items-center gap-2 sm:gap-3 border-l border-slate-800 pl-2 sm:pl-4">
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-1.5 hover:border-slate-700 transition"
+            className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-2.5 sm:px-3 py-1.5 hover:border-slate-700 transition"
           >
-            <span className="text-xl">{currentUser.avatar}</span>
-            <div className="text-left text-xs">
-              <p className="font-semibold text-slate-200">{currentUser.fullName}</p>
+            <span className="text-lg sm:text-xl">{currentUser.avatar}</span>
+            <div className="text-left text-xs hidden md:block">
+              <p className="font-semibold text-slate-200 truncate">{currentUser.fullName}</p>
               <p className="text-[10px] text-slate-400 flex items-center gap-1">
                 <Shield className="w-3 h-3 text-amber-400" /> {currentUser.role}
               </p>

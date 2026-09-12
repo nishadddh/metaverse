@@ -14,7 +14,7 @@ class MediaStreamService {
 
   async requestMicrophone(): Promise<MediaStream | null> {
     try {
-      if (this.audioStream) return this.audioStream;
+      if (this.audioStream && this.audioStream.active) return this.audioStream;
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       return this.audioStream;
     } catch (err) {
@@ -25,7 +25,7 @@ class MediaStreamService {
 
   async requestCamera(): Promise<MediaStream | null> {
     try {
-      if (this.videoStream) return this.videoStream;
+      if (this.videoStream && this.videoStream.active) return this.videoStream;
       this.videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
       return this.videoStream;
     } catch (err) {
@@ -36,7 +36,7 @@ class MediaStreamService {
 
   async requestScreenShare(): Promise<MediaStream | null> {
     try {
-      if (this.screenStream) return this.screenStream;
+      if (this.screenStream && this.screenStream.active) return this.screenStream;
       this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
       return this.screenStream;
     } catch (err) {
@@ -45,15 +45,43 @@ class MediaStreamService {
     }
   }
 
+  stopVideo() {
+    if (this.videoStream) {
+      this.videoStream.getTracks().forEach(track => track.stop());
+      this.videoStream = null;
+    }
+  }
+
+  stopAudio() {
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
+    }
+  }
+
+  stopScreen() {
+    if (this.screenStream) {
+      this.screenStream.getTracks().forEach(track => track.stop());
+      this.screenStream = null;
+    }
+  }
+
+  getVideoStream(): MediaStream | null {
+    return this.videoStream;
+  }
+
+  getAudioStream(): MediaStream | null {
+    return this.audioStream;
+  }
+
+  getScreenStream(): MediaStream | null {
+    return this.screenStream;
+  }
+
   stopAll() {
-    [this.audioStream, this.videoStream, this.screenStream].forEach(stream => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    });
-    this.audioStream = null;
-    this.videoStream = null;
-    this.screenStream = null;
+    this.stopAudio();
+    this.stopVideo();
+    this.stopScreen();
   }
 }
 
