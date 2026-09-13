@@ -21,11 +21,11 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-16 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl px-3 sm:px-6 flex items-center justify-between font-sans text-slate-100 sticky top-0 z-40">
       <div className="flex items-center gap-2.5 cursor-pointer" onClick={onNavigateDashboard}>
         <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-base sm:text-lg shadow-lg shadow-blue-500/20 shrink-0">
-          V
+          N
         </div>
         <div className="truncate">
           <h1 className="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 truncate">
-            Antigravity Office <span className="hidden sm:inline-block text-[10px] rounded-md bg-blue-500/20 px-2 py-0.5 text-blue-400 font-bold uppercase">SaaS Enterprise</span>
+            Nishad Metaverse <span className="hidden sm:inline-block text-[10px] rounded-md bg-blue-500/20 px-2 py-0.5 text-blue-400 font-bold uppercase">Spatial Platform</span>
           </h1>
           <p className="text-[9px] sm:text-[10px] text-slate-400 hidden sm:block">Spatial Workspace • Proximity Communication</p>
         </div>

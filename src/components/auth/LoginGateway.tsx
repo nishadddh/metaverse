@@ -108,10 +108,10 @@ export const LoginGateway: React.FC<LoginGatewayProps> = ({ onLoginSuccess }) =>
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-black text-2xl shadow-xl shadow-blue-500/20 mb-2">
-            V
+            N
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
-            Virtual Office Platform
+            Nishad Metaverse
             <Sparkles className="w-5 h-5 text-amber-400" />
           </h1>
           <p className="text-xs text-slate-400">

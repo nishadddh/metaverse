@@ -131,7 +131,7 @@ export const OrgDashboard: React.FC<OrgDashboardProps> = ({
             <span className="text-3xl">🏢</span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                Acme Metaverse Corp
+                Nishad Metaverse
                 {currentUser.isSuperAdmin && (
                   <span className="text-[11px] rounded-full bg-pink-500/20 px-2.5 py-0.5 font-bold text-pink-400 border border-pink-500/30">
                     SUPER ADMIN VIEW

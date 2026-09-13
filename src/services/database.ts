@@ -78,8 +78,8 @@ const DEFAULT_ACME_OWNER: UserProfile = {
 const DEFAULT_ORGANIZATIONS: Organization[] = [
   {
     id: 'org_acme_corp',
-    name: 'Acme Metaverse Corp',
-    slug: 'acme-corp',
+    name: 'Nishad Metaverse',
+    slug: 'nishad-metaverse',
     logoUrl: '🏢',
     ownerId: 'usr_acme_owner',
     ownerEmail: 'owner@acme.com',
