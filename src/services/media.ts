@@ -15,7 +15,13 @@ class MediaStreamService {
   async requestMicrophone(): Promise<MediaStream | null> {
     try {
       if (this.audioStream && this.audioStream.active) return this.audioStream;
-      this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      try {
+        this.audioStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+        });
+      } catch (e) {
+        this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
       return this.audioStream;
     } catch (err) {
       console.warn('Microphone access denied or unavailable:', err);
@@ -26,7 +32,13 @@ class MediaStreamService {
   async requestCamera(): Promise<MediaStream | null> {
     try {
       if (this.videoStream && this.videoStream.active) return this.videoStream;
-      this.videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+      try {
+        this.videoStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } 
+        });
+      } catch (e) {
+        this.videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       return this.videoStream;
     } catch (err) {
       console.warn('Camera access denied or unavailable:', err);

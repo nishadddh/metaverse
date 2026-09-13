@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { UserProfile, UserPosition } from '../../types/office';
 import type { ProximityPeer } from '../../services/audio';
+import { extractNameFromEmail } from '../../services/firebase';
 import { 
   X, 
   Mic, 
@@ -155,14 +156,32 @@ export const SpatialVideoModal: React.FC<SpatialVideoModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Filter teammates: Include only in-range teammates OR teammates with active video
-  const activeProximityUsers = proximityPeers.map(peer => {
-    const profile = allUsers.find(u => u.id === peer.userId);
-    const pos = positions.find(p => p.userId === peer.userId);
+  // Collect all remote users present in the office
+  const otherPositions = positions.filter(p => p.userId !== currentUser.id);
+
+  const activeProximityUsers = otherPositions.map(pos => {
+    const peer = proximityPeers.find(p => p.userId === pos.userId) || {
+      userId: pos.userId,
+      distance: 300,
+      volume: 1.0,
+      inRange: true
+    };
+
+    const profile: UserProfile = allUsers.find(u => u.id === pos.userId) || {
+      id: pos.userId,
+      email: `${pos.userId}@metaverse.com`,
+      fullName: extractNameFromEmail(pos.userId),
+      avatar: '👨‍💻',
+      color: '#3b82f6',
+      role: 'Employee',
+      createdAt: Date.now()
+    };
+
     return { peer, profile, pos };
   }).filter(item => {
-    if (!item.profile) return false;
-    const hasVideo = (remoteStreams && remoteStreams.has(item.profile.id)) || (firebaseVideoFeeds && firebaseVideoFeeds.has(item.profile.id)) || item.pos?.isCamOn;
+    const hasVideo = (remoteStreams && remoteStreams.has(item.profile.id)) || 
+                     (firebaseVideoFeeds && firebaseVideoFeeds.has(item.profile.id)) || 
+                     item.pos?.isCamOn;
     return item.peer.inRange || hasVideo;
   });
 
