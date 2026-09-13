@@ -5,7 +5,12 @@ import { realtimeService } from '../../services/presence';
 import { spatialAudio } from '../../services/audio';
 import type { ProximityPeer } from '../../services/audio';
 import { mediaService } from '../../services/media';
-import { subscribeFirebaseOfficeStructure } from '../../services/firebase';
+import { 
+  subscribeFirebaseOfficeStructure, 
+  syncVideoFrameToFirebase, 
+  subscribeFirebaseVideoFeeds 
+} from '../../services/firebase';
+import { webrtcService } from '../../services/webrtc';
 import { SpatialVideoModal } from './SpatialVideoModal';
 import { MobileJoystick } from './MobileJoystick';
 import { 
@@ -24,7 +29,8 @@ import {
   Sparkles,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Users
 } from 'lucide-react';
 
 interface OfficeViewProps {
@@ -59,9 +65,12 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
   const [isCamOn, setIsCamOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [showMobileProximity, setShowMobileProximity] = useState(false);
 
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const [firebaseVideoFeeds, setFirebaseVideoFeeds] = useState<Map<string, string>>(new Map());
 
   const [showRadiusCircle, setShowRadiusCircle] = useState(true);
   const [proximityRadius, setProximityRadiusState] = useState(280);
@@ -112,6 +121,14 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     engine.start();
 
     realtimeService.joinOffice(office.id, currentUser.id, 600, 450);
+    webrtcService.joinRoomSession(office.id, 'open_area', currentUser.id, mediaService.getCombinedStream());
+
+    const unsubWebRTC = webrtcService.subscribeRemoteStreams((streams) => {
+      setRemoteStreams(new Map(streams));
+      if (streams.size > 0) {
+        setIsVideoModalOpen(true);
+      }
+    });
 
     const unsubPositions = realtimeService.subscribePositions((updatedPositions) => {
       setPositions(updatedPositions);
@@ -121,6 +138,19 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
       if (myPos) {
         const peers = spatialAudio.calculateProximity(myPos, updatedPositions);
         setProximityPeers(peers);
+
+        // Auto-open video modal if any nearby in-range teammate has camera active
+        const hasActiveCamPeer = updatedPositions.some(p => p.userId !== currentUser.id && p.isCamOn);
+        if (hasActiveCamPeer) {
+          setIsVideoModalOpen(true);
+        }
+
+        // Auto-establish WebRTC P2P audio/video connection to all in-range/same-room teammates
+        peers.forEach(peer => {
+          if (peer.inRange) {
+            webrtcService.connectToPeer(peer.userId);
+          }
+        });
       }
     });
 
@@ -131,12 +161,56 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     });
 
     return () => {
+      unsubWebRTC();
       unsubStructure();
       unsubPositions();
+      webrtcService.leaveRoomSession();
       realtimeService.leaveOffice();
       engine.destroy();
     };
   }, [office.id, currentUser.id]);
+
+  // Subscribe to Live Firebase Video Snapshot Feeds
+  useEffect(() => {
+    const unsubFeeds = subscribeFirebaseVideoFeeds(office.id, (feeds) => {
+      setFirebaseVideoFeeds(new Map(feeds));
+      if (feeds.size > 0) {
+        setIsVideoModalOpen(true);
+      }
+    });
+    return () => unsubFeeds();
+  }, [office.id]);
+
+  // Live Camera Snapshot Capture & Broadcast Loop via Firebase Realtime Database
+  useEffect(() => {
+    if (!isCamOn || !videoStream) {
+      syncVideoFrameToFirebase(office.id, currentUser.id, null);
+      return;
+    }
+
+    const videoEl = document.createElement('video');
+    videoEl.srcObject = videoStream;
+    videoEl.muted = true;
+    videoEl.play().catch(() => {});
+
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = 320;
+    captureCanvas.height = 240;
+    const ctx = captureCanvas.getContext('2d');
+
+    const interval = setInterval(() => {
+      if (ctx && videoEl.readyState >= 2) {
+        ctx.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
+        const base64 = captureCanvas.toDataURL('image/jpeg', 0.5);
+        syncVideoFrameToFirebase(office.id, currentUser.id, base64);
+      }
+    }, 350);
+
+    return () => {
+      clearInterval(interval);
+      syncVideoFrameToFirebase(office.id, currentUser.id, null);
+    };
+  }, [isCamOn, videoStream, office.id, currentUser.id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -166,6 +240,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     }
     setIsMicOn(nextState);
     if (engineRef.current) engineRef.current.isMicOn = nextState;
+    webrtcService.setLocalStream(mediaService.getCombinedStream());
     realtimeService.updateMediaState(nextState, isCamOn, isScreenSharing);
   };
 
@@ -186,6 +261,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     }
     setIsCamOn(nextState);
     if (engineRef.current) engineRef.current.isCamOn = nextState;
+    webrtcService.setLocalStream(mediaService.getCombinedStream());
     realtimeService.updateMediaState(isMicOn, nextState, isScreenSharing);
   };
 
@@ -216,8 +292,11 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
     }
   };
 
+  const activeStreamsCount = Math.max(remoteStreams.size, firebaseVideoFeeds.size);
+
   return (
     <div className="relative h-screen w-screen bg-slate-950 overflow-hidden select-none font-sans text-slate-100">
+      {/* Top Header Navigation Bar */}
       <header className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-900/80 p-3 backdrop-blur-xl shadow-2xl">
         <div className="flex items-center gap-3">
           <button
@@ -254,6 +333,15 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Mobile Proximity Toggle Button */}
+          <button
+            onClick={() => setShowMobileProximity(!showMobileProximity)}
+            className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400"
+            title="Toggle Proximity List"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+
           {currentRoom && currentRoom.type === 'meeting' && (
             <button
               onClick={() => onJoinMeeting(currentRoom)}
@@ -282,6 +370,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         </div>
       </header>
 
+      {/* Main 2D Virtual Canvas */}
       <div className="h-full w-full flex items-center justify-center bg-slate-950">
         <canvas
           ref={canvasRef}
@@ -291,7 +380,8 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         />
       </div>
 
-      <div className="absolute top-24 left-4 z-20 w-72 rounded-2xl border border-slate-800/80 bg-slate-900/90 p-3.5 backdrop-blur-xl space-y-3 hidden md:block shadow-2xl">
+      {/* Spatial Audio & Proximity Information Overlay */}
+      <div className={`absolute top-20 sm:top-24 left-3 right-3 sm:right-auto sm:left-4 z-30 sm:w-72 rounded-2xl border border-slate-800/80 bg-slate-900/95 p-3.5 backdrop-blur-xl space-y-3 shadow-2xl ${showMobileProximity ? 'block' : 'hidden md:block'}`}>
         <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
           <span className="font-semibold text-slate-200 flex items-center gap-1.5">
             <Radio className="w-4 h-4 text-sky-400" /> Spatial Proximity Audio
@@ -301,7 +391,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
           </span>
         </div>
 
-        {/* Dynamic Proximity Radius Slider Control */}
+        {/* Proximity Radius Slider */}
         <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
           <div className="flex items-center justify-between text-[11px] text-slate-300 font-semibold">
             <span className="flex items-center gap-1 text-slate-400">
@@ -325,6 +415,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
           </div>
         </div>
 
+        {/* Nearby Teammates Spatial Volume Status */}
         <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
           {proximityPeers.length === 0 ? (
             <p className="text-[11px] text-slate-500 italic py-2 text-center">
@@ -341,7 +432,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-semibold text-emerald-400 block">{Math.round(p.volume * 100)}% Vol</span>
-                    <span className="text-[9px] text-slate-500">{p.distance}px away</span>
+                    <span className="text-[9px] text-slate-500">{p.distance < 9000 ? `${p.distance}px away` : 'Same Room'}</span>
                   </div>
                 </div>
               );
@@ -350,6 +441,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         </div>
       </div>
 
+      {/* Main Interactive Control Bar at Bottom */}
       <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 max-w-[95vw] overflow-x-auto scrollbar-none flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-slate-800/80 bg-slate-900/95 p-2 sm:p-2.5 backdrop-blur-2xl shadow-2xl">
         <button
           onClick={toggleMic}
@@ -391,12 +483,17 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
 
         <button
           onClick={() => setIsVideoModalOpen(!isVideoModalOpen)}
-          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition ${
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition relative ${
             isVideoModalOpen ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
           }`}
           title="Toggle Proximity Camera & Video Feed Screen"
         >
           <Tv className="w-5 h-5" />
+          {activeStreamsCount > 0 && !isVideoModalOpen && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-slate-950 animate-pulse border border-slate-900">
+              {activeStreamsCount}
+            </span>
+          )}
         </button>
 
         <div className="h-6 w-[1px] bg-slate-800 mx-0.5 shrink-0" />
@@ -471,6 +568,28 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         </div>
       )}
 
+      {/* Hidden Background Audio Player Container */}
+      <div className="hidden">
+        {Array.from(remoteStreams.entries()).map(([peerUserId, stream]) => {
+          const peer = proximityPeers.find(p => p.userId === peerUserId);
+          const volume = peer ? peer.volume : (currentRoom ? 1.0 : 0);
+          return (
+            <audio
+              key={peerUserId}
+              ref={(el) => {
+                if (el) {
+                  if (el.srcObject !== stream) el.srcObject = stream;
+                  el.volume = Math.max(0, Math.min(1.0, volume));
+                  el.play().catch(err => console.warn('Background audio playback note:', err));
+                }
+              }}
+              autoPlay
+              playsInline
+            />
+          );
+        })}
+      </div>
+
       {/* On-screen Mobile Touch D-Pad Joystick Overlay */}
       <MobileJoystick
         onDirectionChange={(dir) => engineRef.current?.setVirtualDirection(dir)}
@@ -489,6 +608,8 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
         isScreenSharing={isScreenSharing}
         videoStream={videoStream}
         screenStream={screenStream}
+        remoteStreams={remoteStreams}
+        firebaseVideoFeeds={firebaseVideoFeeds}
         onToggleMic={toggleMic}
         onToggleCam={toggleCam}
         onToggleScreen={toggleScreen}

@@ -901,12 +901,21 @@ export class CanvasEngine {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // Overhead Camera & Mic Badge Pill
     if (isMicOn || isCamOn) {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(x - 22, y - 36, 44, 14);
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`${isMicOn ? '🎙️' : ''}${isCamOn ? '🎥' : ''}`, x, y - 29);
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.strokeStyle = isCamOn ? '#3b82f6' : '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(x - 26, y - 44, 52, 18);
+      ctx.strokeRect(x - 26, y - 44, 52, 18);
+
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(`${isMicOn ? '🎙️ LIVE' : ''}${isMicOn && isCamOn ? ' ' : ''}${isCamOn ? '🎥 CAM' : ''}`, x, y - 35);
+      ctx.restore();
     }
 
     ctx.font = '600 11px Inter, sans-serif';

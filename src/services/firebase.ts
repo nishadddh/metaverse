@@ -412,6 +412,54 @@ export const removeFirebasePresence = async (officeId: string, userId: string) =
   }
 };
 
+/**
+ * Stream live video frame snapshot to Firebase Realtime DB (100% Reliable Firebase Media Fallback)
+ */
+export const syncVideoFrameToFirebase = async (officeId: string, userId: string, frameDataBase64: string | null) => {
+  try {
+    const frameRef = ref(realtimeDb, `offices/${officeId}/video_feeds/${userId}`);
+    if (frameDataBase64) {
+      await set(frameRef, {
+        userId,
+        frame: frameDataBase64,
+        timestamp: Date.now()
+      });
+      onDisconnect(frameRef).remove();
+    } else {
+      await remove(frameRef);
+    }
+  } catch (err) {
+    console.warn('Firebase RTDB Video Frame Sync:', err);
+  }
+};
+
+/**
+ * Subscribe to all live video frame feeds for an office from Firebase Realtime DB
+ */
+export const subscribeFirebaseVideoFeeds = (
+  officeId: string,
+  callback: (feeds: Map<string, string>) => void
+) => {
+  try {
+    const feedsRef = ref(realtimeDb, `offices/${officeId}/video_feeds`);
+    return onValue(feedsRef, (snapshot) => {
+      const data = snapshot.val();
+      const feedsMap = new Map<string, string>();
+      if (data) {
+        Object.entries(data).forEach(([uId, item]: [string, any]) => {
+          if (item && item.frame && (Date.now() - item.timestamp < 10000)) {
+            feedsMap.set(uId, item.frame);
+          }
+        });
+      }
+      callback(feedsMap);
+    });
+  } catch (err) {
+    console.warn('Firebase RTDB Video Feeds Subscribe:', err);
+    return () => {};
+  }
+};
+
 export const isFirebaseConfigured = true;
 
 export default app;

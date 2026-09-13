@@ -78,6 +78,15 @@ class MediaStreamService {
     return this.screenStream;
   }
 
+  getCombinedStream(): MediaStream | null {
+    const tracks: MediaStreamTrack[] = [];
+    if (this.audioStream) tracks.push(...this.audioStream.getAudioTracks());
+    if (this.videoStream) tracks.push(...this.videoStream.getVideoTracks());
+    if (this.screenStream) tracks.push(...this.screenStream.getVideoTracks());
+    if (tracks.length === 0) return null;
+    return new MediaStream(tracks);
+  }
+
   stopAll() {
     this.stopAudio();
     this.stopVideo();
