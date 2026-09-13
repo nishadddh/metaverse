@@ -37,32 +37,61 @@ class SpatialAudioService {
 
   calculateProximity(myPos: UserPosition, allPositions: UserPosition[]): ProximityPeer[] {
     const results: ProximityPeer[] = [];
+    const myRoomId = myPos.currentRoomId || 'open_workspace';
 
     for (const peer of allPositions) {
       if (peer.userId === myPos.userId) continue;
 
-      const dx = peer.x - myPos.x;
-      const dy = peer.y - myPos.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      const peerRoomId = peer.currentRoomId || 'open_workspace';
 
-      let volume = 0;
-      let inRange = false;
-
-      if (distance <= this.fullVolumeRadius) {
-        volume = 1.0;
-        inRange = true;
-      } else if (distance <= this.proximityRadius) {
-        volume = 1.0 - (distance - this.fullVolumeRadius) / (this.proximityRadius - this.fullVolumeRadius);
-        volume = Math.max(0, Math.min(1.0, volume));
-        inRange = true;
+      // 1. CRITICAL ROOM ISOLATION REQUIREMENT:
+      // If User A is in Open Workspace and User B is in Private Meeting Room (or different rooms),
+      // communication MUST be 100% ISOLATED (volume = 0)! Soundproof boundary enforced.
+      if (myRoomId !== peerRoomId) {
+        const item: ProximityPeer = {
+          userId: peer.userId,
+          distance: 9999,
+          volume: 0,
+          inRange: false
+        };
+        results.push(item);
+        this.peerStates.set(peer.userId, item);
+        continue;
       }
 
-      const effectiveVolume = peer.isMicOn ? volume : 0;
+      // 2. SAME-ROOM COMMUNICATION MODE:
+      // If users are inside the SAME room, distance inside the room does NOT block audio.
+      // All authorized room participants belong to the room session (volume = 1.0)!
+      let volume = 0;
+      let inRange = false;
+      let distance = 0;
+
+      if (myRoomId !== 'open_workspace') {
+        volume = peer.isMicOn ? 1.0 : 0;
+        inRange = true;
+        distance = Math.round(Math.hypot(peer.x - myPos.x, peer.y - myPos.y));
+      } else {
+        // 3. OPEN WORKSPACE PROXIMITY MODE:
+        // Proximity audio active ONLY within the open area zone.
+        const dx = peer.x - myPos.x;
+        const dy = peer.y - myPos.y;
+        distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= this.fullVolumeRadius) {
+          volume = 1.0;
+          inRange = true;
+        } else if (distance <= this.proximityRadius) {
+          volume = 1.0 - (distance - this.fullVolumeRadius) / (this.proximityRadius - this.fullVolumeRadius);
+          volume = Math.max(0, Math.min(1.0, volume));
+          inRange = true;
+        }
+        if (!peer.isMicOn) volume = 0;
+      }
 
       const item: ProximityPeer = {
         userId: peer.userId,
         distance: Math.round(distance),
-        volume: Number(effectiveVolume.toFixed(2)),
+        volume: Number(volume.toFixed(2)),
         inRange
       };
 

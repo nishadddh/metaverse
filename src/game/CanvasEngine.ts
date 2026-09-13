@@ -59,6 +59,9 @@ export class CanvasEngine {
   public proximityRadius: number = 280;
   public showGrid: boolean = true;
 
+  public isMicOn: boolean = false;
+  public isCamOn: boolean = false;
+
   private animFrameId: number | null = null;
   private isRunning: boolean = false;
 
@@ -799,8 +802,8 @@ export class CanvasEngine {
       this.currentUser.avatarUrl,
       this.currentUser.color || '#3b82f6',
       'active',
-      false,
-      false,
+      this.isMicOn,
+      this.isCamOn,
       true
     );
 

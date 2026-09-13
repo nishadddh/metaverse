@@ -240,15 +240,15 @@ class StorageService {
       localStorage.setItem(KEYS.OFFICES, JSON.stringify(DEFAULT_OFFICES));
     }
 
-    // Sync default offices to Firebase RTDB master database
-    DEFAULT_OFFICES.forEach(off => {
-      syncOfficeToFirebase(off);
-    });
-
     // Auto-subscribe to Firebase Realtime Database for real-time cross-browser office sync
     subscribeFirebaseOffices((remoteOffices) => {
       if (remoteOffices && remoteOffices.length > 0) {
         this.updateOfficesFromFirebase(remoteOffices);
+      } else {
+        // Seed default offices to Firebase ONLY if database is completely empty
+        DEFAULT_OFFICES.forEach(off => {
+          syncOfficeToFirebase(off);
+        });
       }
     });
 

@@ -165,6 +165,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
       showToast('🔇 Microphone Muted');
     }
     setIsMicOn(nextState);
+    if (engineRef.current) engineRef.current.isMicOn = nextState;
     realtimeService.updateMediaState(nextState, isCamOn, isScreenSharing);
   };
 
@@ -184,6 +185,7 @@ export const OfficeView: React.FC<OfficeViewProps> = ({
       showToast('📷 Camera Disabled');
     }
     setIsCamOn(nextState);
+    if (engineRef.current) engineRef.current.isCamOn = nextState;
     realtimeService.updateMediaState(isMicOn, nextState, isScreenSharing);
   };
 
